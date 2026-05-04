@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Mah Jongg Advisor — 2026 NMJL</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, serif; background: #faf7f2; color: #222; min-height: 100vh; }
+
+    /* Header */
+    #header {
+      background: #1a0a00; color: #f5e8c8;
+      padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    #header h1 { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+    #header .sub { font-size: 10px; color: #c8aa80; margin-top: 1px; }
+    #tile-count { text-align: right; }
+    #tile-count .label { font-size: 10px; color: #c8aa80; }
+    #tile-count .num { font-size: 24px; font-weight: 700; color: #f5e8c8; }
+    #tile-count .num.warn { color: #ff6644; }
+
+    /* Mode toggle */
+    #mode-toggle { display: flex; background: #0d0500; border-radius: 8px; padding: 3px; gap: 2px; }
+    #mode-toggle button {
+      padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer;
+      font-family: Georgia, serif; font-size: 12px; font-weight: 700;
+      background: transparent; color: #a08060; transition: all 0.2s;
+    }
+    #mode-toggle button.active-easy { background: #1a8a3a; color: #fff; }
+    #mode-toggle button.active-hard { background: #8b1a1a; color: #fff; }
+
+    /* Banner */
+    #mode-banner {
+      padding: 7px 16px; font-size: 12px;
+      border-bottom: 2px solid #2d6a2d;
+      background: #edf7f0; color: #1a5a2a;
+    }
+    #mode-banner.hard { border-color: #8b1a1a; background: #f7edec; color: #6a1a1a; }
+
+    /* Layout */
+    #app { display: flex; flex-wrap: wrap; }
+
+    /* Picker */
+    #picker {
+      flex: 0 0 300px; padding: 14px 14px;
+      border-right: 1px solid #e0d8c8;
+    }
+    @media (max-width: 640px) {
+      #picker { flex: 0 0 100%; border-right: none; border-bottom: 1px solid #e0d8c8; padding: 12px; }
+    }
+    .picker-section-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 7px;
+    }
+    .picker-group { margin-bottom: 13px; }
+    .tile-row { display: flex; gap: 5px; flex-wrap: wrap; }
+    .tile-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+
+    .tile {
+      width: 40px; height: 52px; border-radius: 6px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; line-height: 1.1;
+      border: 2px solid #ccc; background: #f5f0e8; color: #555;
+      transition: all 0.15s; user-select: none;
+    }
+    .tile .tile-num { font-size: 16px; }
+    .tile .tile-suit { font-size: 8px; letter-spacing: 1px; }
+    .tile .tile-honor { font-size: 11px; }
+    .tile.selected { color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+    .tile:active { transform: scale(0.95); }
+
+    .tile-counter { display: flex; align-items: center; gap: 2px; }
+    .tile-counter button {
+      width: 16px; height: 16px; border-radius: 50%; border: none;
+      font-size: 11px; cursor: pointer; padding: 0; line-height: 1;
+      color: #fff; display: flex; align-items: center; justify-content: center;
+    }
+    .tile-counter .minus { background: #c00; }
+    .tile-counter .plus { background: #2a7; }
+    .tile-counter .count { font-size: 11px; font-weight: 700; color: #333; min-width: 12px; text-align: center; }
+
+    /* Hand summary */
+    #hand-summary {
+      background: #fff8ee; border: 1px solid #e0c880; border-radius: 8px;
+      padding: 10px; margin-top: 6px; display: none;
+    }
+    #hand-summary .label { font-size: 9px; font-weight: 700; color: #8b6030; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+    #hand-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .hand-chip { font-size: 10px; background: #f0e8d0; border-radius: 4px; padding: 2px 6px; font-weight: 600; }
+    #clear-btn {
+      width: 100%; padding: 5px; background: #c00; color: #fff;
+      border: none; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: 600;
+      font-family: Georgia, serif;
+    }
+
+    /* Recommendations */
+    #recs { flex: 1; min-width: 260px; padding: 14px 18px; }
+    .recs-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: #8b6030; margin-bottom: 12px; text-transform: uppercase; }
+
+    #empty-state { color: #999; font-size: 13px; margin-top: 40px; text-align: center; }
+    #empty-state .emoji { font-size: 40px; margin-bottom: 10px; }
+
+    .hand-card {
+      background: #fff; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
+      border: 1px solid rgba(0,0,0,0.08); border-left-width: 4px;
+    }
+    .hand-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .hand-card-left { display: flex; align-items: center; gap: 6px; }
+    .medal { font-size: 15px; }
+    .section-badge {
+      font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+      padding: 2px 7px; border-radius: 10px;
+    }
+    .pct { font-size: 19px; font-weight: 800; }
+    .pct.green { color: #1a8a3a; }
+    .pct.amber { color: #c07800; }
+    .pct.gray { color: #999; }
+    .hand-name { font-size: 13px; font-weight: 700; color: #111; margin-bottom: 5px; }
+
+    .full-hand {
+      font-size: 11px; font-family: monospace; background: #f5f0e8;
+      border-radius: 5px; padding: 5px 9px; margin-bottom: 6px;
+      letter-spacing: 0.3px; line-height: 1.5; color: #333; font-weight: 600;
+    }
+    .easy-tip { font-size: 12px; color: #555; margin-bottom: 6px; line-height: 1.5; }
+    .hard-hint {
+      font-size: 12px; color: #666; margin-bottom: 6px; font-style: italic;
+      line-height: 1.5; border-left: 3px solid #ddd; padding-left: 8px;
+    }
+
+    .score-bar-wrap { height: 7px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .score-bar { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .score-bar.green { background: #1a8a3a; }
+    .score-bar.amber { background: #c07800; }
+    .score-bar.gray { background: #aaa; }
+
+    .hand-stats { font-size: 10px; color: #888; margin-top: 5px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .hand-stats .warn { color: #c07800; }
+
+    #footer-note { font-size: 10px; color: #bbb; margin-top: 4px; padding-top: 8px; border-top: 1px solid #eee; display: none; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>🀄 Mah Jongg Advisor</h1>
+    <div class="sub">2026 NMJL Card</div>
+  </div>
+  <div id="mode-toggle">
+    <button id="btn-easy" class="active-easy" onclick="setMode('easy')">🟢 Easy</button>
+    <button id="btn-hard" onclick="setMode('hard')">🔴 Hard</button>
+  </div>
+  <div id="tile-count">
+    <div class="label">Tiles</div>
+    <div class="num" id="count-display">0</div>
+  </div>
+</div>
+
+<div id="mode-banner">🟢 Easy Mode — Full hand layout, plain-English tips, and tile-by-tile guidance.</div>
+
+<div id="app">
+  <!-- Tile Picker -->
+  <div id="picker">
+    <div id="tiles-bam" class="picker-group"></div>
+    <div id="tiles-crak" class="picker-group"></div>
+    <div id="tiles-dot" class="picker-group"></div>
+    <div id="tiles-honors" class="picker-group"></div>
+    <div id="hand-summary">
+      <div class="label">Your Hand</div>
+      <div id="hand-chips"></div>
+      <button id="clear-btn" onclick="clearHand()">Clear Hand</button>
+    </div>
+  </div>
+
+  <!-- Recommendations -->
+  <div id="recs">
+    <div class="recs-label">Top Recommended Hands</div>
+    <div id="empty-state">
+      <div class="emoji">🀄</div>
+      Select tiles to see recommendations.
+    </div>
+    <div id="hand-cards"></div>
+    <div id="footer-note">Scores reflect tile overlap with hand requirements. Representative hands shown — check your physical card for the complete 2026 listing.</div>
+  </div>
+</div>
+
+<script>
+// ── Data ────────────────────────────────────────────────────────────────────
+const SUITS = ["B","C","D"];
+const SUIT_LABELS = {B:"BAM",C:"CRAK",D:"DOT"};
+const SUIT_COLORS = {B:"#2d6a2d",C:"#8b1a1a",D:"#1a4a8b"};
+const HONORS = ["F","N","E","W","S","J"];
+const HONOR_DISPLAY = {F:"🌸",N:"N",E:"E",W:"W",S:"S",J:"🃏"};
+const HONOR_COLORS = {F:"#7b4f00",N:"#444",E:"#444",W:"#444",S:"#444",J:"#4a0080"};
+
+const SECTION_COLORS = {
+  "2026":"#8b1a1a","2468":"#1a4a8b","13579":"#2d6a2d",
+  "Consecutive Run":"#7b4f00","Any Like Numbers":"#5a1a6a",
+  "Winds & Dragons":"#1a5a5a","Singles & Pairs":"#6a3a00",
+  "Quints":"#3a3a8a","369":"#8a5a00"
+};
+
+const MEDALS = ["🥇","🥈","🥉","④","⑤"];
+
+// ── State ───────────────────────────────────────────────────────────────────
+let hand = {}; // tile → count
+let currentMode = "easy";
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+const tiles = () => {
+  const arr = [];
+  for (const [t, c] of Object.entries(hand)) for (let i=0;i<c;i++) arr.push(t);
+  return arr;
+};
+const total = () => Object.values(hand).reduce((a,b)=>a+b,0);
+const cntHonor = (t, h) => t.filter(x=>x===h).length;
+const jokers = (t) => cntHonor(t,"J");
+const flowers = (t) => cntHonor(t,"F");
+
+// ── Hand definitions ─────────────────────────────────────────────────────────
+const HANDS = [
+  // 2026
+  { id:"2026-1", section:"2026", name:"20 20 26 26",
+    fullHand:"FF · 2X 2X · 2X 2X · 6X 6X · 6X 6X  (2 suits)",
+    easyTip:"2 Flowers + pairs of 2s and 6s across two suits. Think of '2026' — collect 2s and 6s in two matching suits.",
+    hardHint:"2026 section → year-digit pairs across two suits.",
+    eval(t){
+      const need=14; let have=Math.min(flowers(t),2);
+      SUITS.forEach(s=>{have+=Math.min(t.filter(x=>x===`2${s}`).length,3)+Math.min(t.filter(x=>x===`6${s}`).length,3);});
+      have+=Math.min(jokers(t),2); return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"2026-2", section:"2026", name:"NEWS + 2026",
+    fullHand:"NN · EE · WW · SS · 2X · 2X · 6X · 6X  (1 suit for numbers)",
+    easyTip:"Pair of each wind (N,E,W,S) + pairs of 2s and 6s in one suit. Great if winds are landing early.",
+    hardHint:"2026 section → all four winds + year digits. Winds required.",
+    eval(t){
+      const need=12; let have=["N","E","W","S"].reduce((a,w)=>a+Math.min(cntHonor(t,w),2),0);
+      SUITS.forEach(s=>{have+=Math.min(t.filter(x=>x===`2${s}`).length,2)+Math.min(t.filter(x=>x===`6${s}`).length,2);});
+      have+=Math.min(jokers(t),2); return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"2026-3", section:"2026", name:"222 000 222 666",
+    fullHand:"222 · Dragon Dragon Dragon · 222 · 666  (1 suit; Dragon = suit's dragon)",
+    easyTip:"Pungs of 2, the matching dragon, another pung of 2, and a pung of 6 — all in one suit. Heavy 2s and 6s in one color is the signal.",
+    hardHint:"2026 section → single-suit pungs with a dragon in the middle.",
+    eval(t){
+      const need=12; let best=0;
+      SUITS.forEach(s=>{best=Math.max(best,Math.min(t.filter(x=>x===`2${s}`).length,6)+Math.min(t.filter(x=>x===`6${s}`).length,3));});
+      best+=Math.min(jokers(t),3); return {have:Math.min(best,need),need};
+    }
+  },
+  // 2468
+  { id:"2468-1", section:"2468", name:"FF 2468 2468 2468",
+    fullHand:"FF · 2X 4X 6X 8X · 2X 4X 6X 8X · 2X 4X 6X 8X  (any suits)",
+    easyTip:"Two Flowers + the even run 2-4-6-8 three times across any suits. Great if evens are landing early.",
+    hardHint:"2468 section → flowers + triple even run. Do you have 2,4,6,8?",
+    eval(t){
+      const need=14; let have=Math.min(flowers(t),2);
+      [2,4,6,8].forEach(n=>SUITS.forEach(s=>{have+=Math.min(t.filter(x=>x===`${n}${s}`).length,3);}));
+      have+=Math.min(jokers(t),2); return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"2468-2", section:"2468", name:"222 444 666 888",
+    fullHand:"222 · 444 · 666 · 888  (all in one suit)",
+    easyTip:"Pungs of 2, 4, 6, and 8 in one suit. Start building if you're swimming in evens of one color.",
+    hardHint:"2468 section → single-suit pung of every even number.",
+    eval(t){
+      const need=12; let best=0;
+      SUITS.forEach(s=>{let h=[2,4,6,8].reduce((a,n)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,3),0);best=Math.max(best,h);});
+      best+=Math.min(jokers(t),4); return {have:Math.min(best,need),need};
+    }
+  },
+  { id:"2468-3", section:"2468", name:"22 44 66 88  (No Jokers)",
+    fullHand:"22 · 44 · 66 · 88  (pairs across 2 suits — NO jokers!)",
+    easyTip:"Pairs of 2,4,6,8 across two suits. NO jokers allowed! If evens are landing in natural pairs, this hand plays itself.",
+    hardHint:"2468 section → even pairs, no jokers. Natural tiles only.",
+    eval(t){
+      const need=8; let have=0;
+      [2,4,6,8].forEach(n=>SUITS.forEach(s=>{if(t.filter(x=>x===`${n}${s}`).length>=2)have+=2;}));
+      return {have:Math.min(have,need),need};
+    }
+  },
+  // 13579
+  { id:"13579-1", section:"13579", name:"111 333 555 777 999",
+    fullHand:"111 · 333 · 555 · 777 · 999  (all in one suit)",
+    easyTip:"A pung of every odd number in one suit. If you're collecting odds in one color, start early — it's a long hand.",
+    hardHint:"13579 section → all-odd single-suit pungs. Every odd number required.",
+    eval(t){
+      const need=15; let best=0;
+      SUITS.forEach(s=>{let h=[1,3,5,7,9].reduce((a,n)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,3),0);best=Math.max(best,h);});
+      best+=Math.min(jokers(t),5); return {have:Math.min(best,need),need};
+    }
+  },
+  { id:"13579-2", section:"13579", name:"Odd Pairs × 2 Suits",
+    fullHand:"11 · 33 · 55 · 77 · 99  (pairs across two suits)",
+    easyTip:"Pairs of odd numbers across two suits. If 1s, 3s, 5s, 7s, and 9s are landing in two colors, this is your hand.",
+    hardHint:"13579 section → odd pairs across two suits.",
+    eval(t){
+      const need=10; let have=0;
+      [1,3,5,7,9].forEach(n=>SUITS.forEach(s=>{have+=Math.min(t.filter(x=>x===`${n}${s}`).length,2);}));
+      have+=Math.min(jokers(t),2); return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"13579-3", section:"13579", name:"NEWS + 13579 Singles",
+    fullHand:"N · E · W · S · 1X · 3X · 5X · 7X · 9X  (all singles, one suit)",
+    easyTip:"One of each wind + one of each odd number in one suit. All singles! Good if your hand is scattered with odds and winds.",
+    hardHint:"13579 section → one wind each + single odd run in one suit.",
+    eval(t){
+      const need=9; let have=["N","E","W","S"].reduce((a,w)=>a+Math.min(cntHonor(t,w),1),0);
+      let bestOdds=0;
+      SUITS.forEach(s=>{bestOdds=Math.max(bestOdds,[1,3,5,7,9].reduce((a,n)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,1),0));});
+      have+=bestOdds; return {have:Math.min(have,need),need};
+    }
+  },
+  // Consecutive Run
+  { id:"consec-1", section:"Consecutive Run", name:"111 222 333 + Pair",
+    fullHand:"111 · 222 · 333 · XX  (3 consecutive pungs + any pair)",
+    easyTip:"Three pungs of consecutive numbers in one suit, plus any pair. The pair can be anything — same suit, different, or honors.",
+    hardHint:"Consecutive Run section → three-number pung run + any pair.",
+    eval(t){
+      const need=11; let best=0;
+      SUITS.forEach(s=>{
+        for(let st=1;st<=7;st++){
+          let h=[st,st+1,st+2].reduce((a,n)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,3),0);
+          let pb=0;
+          SUITS.forEach(s2=>{for(let n=1;n<=9;n++){if(t.filter(x=>x===`${n}${s2}`).length>=2){pb=2;break;}}});
+          if(!pb)["N","E","W","S","F"].forEach(h2=>{if(cntHonor(t,h2)>=2)pb=2;});
+          best=Math.max(best,h+pb);
+        }
+      });
+      best+=Math.min(jokers(t),3); return {have:Math.min(best,need),need};
+    }
+  },
+  { id:"consec-2", section:"Consecutive Run", name:"123 456 789",
+    fullHand:"1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · 9  (1–2 suits)",
+    easyTip:"One of each number 1–9 in one or two suits. Good if tiles are spreading across a full suit.",
+    hardHint:"Consecutive Run section → full 1–9 single run, 1–2 suits.",
+    eval(t){
+      const need=9; let best=0;
+      SUITS.forEach(s=>{best=Math.max(best,[1,2,3,4,5,6,7,8,9].reduce((a,n)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,1),0));});
+      best+=Math.min(jokers(t),3); return {have:Math.min(best,need),need};
+    }
+  },
+  { id:"consec-3", section:"Consecutive Run", name:"1111 2222 3333  (Kongs)",
+    fullHand:"1111 · 2222 · 3333  (kongs of 3 consecutive numbers, one suit)",
+    easyTip:"Three kongs of consecutive numbers in one suit. Jokers are essential. Pull 2–3 of a number? Start dreaming of the kong.",
+    hardHint:"Consecutive Run section → three consecutive kongs, single suit. Joker-heavy.",
+    eval(t){
+      const need=12; let best=0;
+      SUITS.forEach(s=>{
+        for(let st=1;st<=7;st++){
+          let h=[st,st+1,st+2].reduce((a,n)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,4),0);
+          best=Math.max(best,h);
+        }
+      });
+      best+=Math.min(jokers(t),6); return {have:Math.min(best,need),need};
+    }
+  },
+  // Any Like Numbers
+  { id:"like-1", section:"Any Like Numbers", name:"111 111 111  (3 Suits)",
+    fullHand:"111 · 111 · 111  (pung of same number in all 3 suits)",
+    easyTip:"Three pungs of the same number across all three suits. Which number do you have most of in multiple colors?",
+    hardHint:"Any Like Numbers section → same number, three suits, pungs.",
+    eval(t){
+      const need=9; let best=0;
+      for(let n=1;n<=9;n++){best=Math.max(best,SUITS.reduce((a,s)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,3),0));}
+      best+=Math.min(jokers(t),3); return {have:Math.min(best,need),need};
+    }
+  },
+  { id:"like-2", section:"Any Like Numbers", name:"1111 1111 1111  (Kongs, 3 Suits)",
+    fullHand:"1111 · 1111 · 1111  (kong of same number in all 3 suits)",
+    easyTip:"Three kongs of the same number across all suits. Joker-hungry but powerful. 2+ of a number in each suit? Start here.",
+    hardHint:"Any Like Numbers section → same number, three suits, kongs. High joker demand.",
+    eval(t){
+      const need=12; let best=0;
+      for(let n=1;n<=9;n++){best=Math.max(best,SUITS.reduce((a,s)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,4),0));}
+      best+=Math.min(jokers(t),4); return {have:Math.min(best,need),need};
+    }
+  },
+  { id:"like-3", section:"Any Like Numbers", name:"FF + 111×3 + FF",
+    fullHand:"FF · 111 · 111 · 111 · FF  (4 flowers + pung same # all 3 suits)",
+    easyTip:"Four flowers bookending pungs of the same number in all three suits. Flowers + a number across suits? This is your play.",
+    hardHint:"Any Like Numbers section → flowers wrapping three-suit pungs. Four flowers total.",
+    eval(t){
+      const need=13; let best=0; const f=Math.min(flowers(t),4);
+      for(let n=1;n<=9;n++){best=Math.max(best,SUITS.reduce((a,s)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,3),0)+f);}
+      best+=Math.min(jokers(t),3); return {have:Math.min(best,need),need};
+    }
+  },
+  // Winds & Dragons
+  { id:"wd-1", section:"Winds & Dragons", name:"NNNN EEEE WWWW SSSS",
+    fullHand:"NNNN · EEEE · WWWW · SSSS  (kongs of all four winds)",
+    easyTip:"Four of every wind. Pure winds hand. If winds keep coming and jokers are available, this is a prestige hand worth chasing.",
+    hardHint:"Winds & Dragons section → all four wind kongs. Are all four winds arriving?",
+    eval(t){
+      const need=16; let have=["N","E","W","S"].reduce((a,w)=>a+Math.min(cntHonor(t,w),4),0);
+      have+=Math.min(jokers(t),4); return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"wd-2", section:"Winds & Dragons", name:"NNNN EEE WWW SSSS",
+    fullHand:"NNNN · EEE · WWW · SSSS  (N/S kongs, E/W pungs)",
+    easyTip:"North and South as kongs, East and West as pungs. Good when you have strong N and S but lighter E and W.",
+    hardHint:"Winds & Dragons section → asymmetric winds: N/S kongs, E/W pungs.",
+    eval(t){
+      const need=14;
+      let have=Math.min(cntHonor(t,"N"),4)+Math.min(cntHonor(t,"E"),3)+Math.min(cntHonor(t,"W"),3)+Math.min(cntHonor(t,"S"),4);
+      have+=Math.min(jokers(t),4); return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"wd-3", section:"Winds & Dragons", name:"NEWS + Dragon Kong",
+    fullHand:"N · E · W · S · DDDD  (one of each wind + kong of any dragon)",
+    easyTip:"Singles of each wind + a kong of any dragon. Jokers fill the kong. Good when winds are scattered but you can build one dragon.",
+    hardHint:"Winds & Dragons section → one of each wind + dragon kong.",
+    eval(t){
+      const need=8; let have=["N","E","W","S"].reduce((a,w)=>a+Math.min(cntHonor(t,w),1),0);
+      have+=Math.min(flowers(t),4)+Math.min(jokers(t),3); return {have:Math.min(have,need),need};
+    }
+  },
+  // Singles & Pairs
+  { id:"sp-1", section:"Singles & Pairs", name:"11 33 55 77  (No Jokers)",
+    fullHand:"11 · 33 · 55 · 77  (pairs of 1,3,5,7 across 2 suits — NO jokers!)",
+    easyTip:"Pairs of 1,3,5,7 across two suits. NO jokers! If odd pairs are landing naturally, this hand plays itself.",
+    hardHint:"Singles & Pairs section → odd pairs, no jokers. Natural tiles only.",
+    eval(t){
+      const need=8; let have=0;
+      [1,3,5,7].forEach(n=>{for(const s of SUITS){if(t.filter(x=>x===`${n}${s}`).length>=2){have+=2;break;}}});
+      return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"sp-2", section:"Singles & Pairs", name:"22 44 66 88  (No Jokers)",
+    fullHand:"22 · 44 · 66 · 88  (pairs of 2,4,6,8 across 2 suits — NO jokers!)",
+    easyTip:"Pairs of 2,4,6,8 in two suits. No jokers! If even tiles are landing in pairs, lock in and protect them.",
+    hardHint:"Singles & Pairs section → even pairs, no jokers. Natural tiles only.",
+    eval(t){
+      const need=8; let have=0;
+      [2,4,6,8].forEach(n=>{for(const s of SUITS){if(t.filter(x=>x===`${n}${s}`).length>=2){have+=2;break;}}});
+      return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"sp-3", section:"Singles & Pairs", name:"FF NN EE WW SS",
+    fullHand:"FF · NN · EE · WW · SS  (pair flowers + pair each wind — NO jokers!)",
+    easyTip:"Pair of flowers + pair of each wind. All natural, no jokers. If flowers and winds keep coming, this is a great honors-only hand.",
+    hardHint:"Singles & Pairs section → all honors pairs, no jokers. Flowers + all four winds.",
+    eval(t){
+      const need=10; let have=Math.min(flowers(t),2);
+      ["N","E","W","S"].forEach(w=>{have+=Math.min(cntHonor(t,w),2);});
+      return {have:Math.min(have,need),need};
+    }
+  },
+  // Quints
+  { id:"quint-1", section:"Quints", name:"QQQQQ QQQQQ",
+    fullHand:"QQQQQ · QQQQQ  (5 of one tile + 5 of another — requires jokers)",
+    easyTip:"Two quints: five of any tile, twice. You need jokers — expect 3–4 minimum. Collecting jokers AND several of the same tile? Start here.",
+    hardHint:"Quints section → five-of-a-kind × 2. What tile do you have most of? Jokers mandatory.",
+    eval(t){
+      const need=10; let best=0;
+      for(let n=1;n<=9;n++){for(const s of SUITS){best=Math.max(best,t.filter(x=>x===`${n}${s}`).length);}}
+      ["N","E","W","S","F"].forEach(h=>{best=Math.max(best,cntHonor(t,h));});
+      const q=Math.min(best+jokers(t),5); return {have:Math.min(q*2,need),need};
+    }
+  },
+  // 369
+  { id:"369-1", section:"369", name:"333 666 999  (1 Suit)",
+    fullHand:"333 · 666 · 999  (pungs of 3, 6, 9 in one suit)",
+    easyTip:"Pungs of 3, 6, and 9 in a single suit. If you're loaded with multiples of 3, 6, or 9 in one color, pivot here fast.",
+    hardHint:"369 section → single-suit pungs of 3, 6, 9.",
+    eval(t){
+      const need=9; let best=0;
+      SUITS.forEach(s=>{best=Math.max(best,[3,6,9].reduce((a,n)=>a+Math.min(t.filter(x=>x===`${n}${s}`).length,3),0));});
+      best+=Math.min(jokers(t),3); return {have:Math.min(best,need),need};
+    }
+  },
+  { id:"369-2", section:"369", name:"33 66 99 × 2 Suits",
+    fullHand:"33 · 66 · 99 · 33 · 66 · 99  (pairs across two suits)",
+    easyTip:"Pairs of 3, 6, and 9 in two suits. Six pairs total. Good if 3s, 6s, 9s keep landing in pairs across two colors.",
+    hardHint:"369 section → pairs of 3, 6, 9 in two suits.",
+    eval(t){
+      const need=12; let have=0;
+      [3,6,9].forEach(n=>SUITS.forEach(s=>{have+=Math.min(t.filter(x=>x===`${n}${s}`).length,2);}));
+      have+=Math.min(jokers(t),2); return {have:Math.min(have,need),need};
+    }
+  },
+  { id:"369-3", section:"369", name:"NEWS + 369 × 2",
+    fullHand:"N · E · W · S · 3X · 6X · 9X · 3X · 6X · 9X  (winds + double 3-6-9 run)",
+    easyTip:"One of each wind + 3-6-9 run twice in one suit. Good when collecting winds and multiples of 3-type numbers.",
+    hardHint:"369 section → one wind each + double 3-6-9 run in one suit.",
+    eval(t){
+      const need=10; let have=["N","E","W","S"].reduce((a,w)=>a+Math.min(cntHonor(t,w),1),0);
+      SUITS.forEach(s=>{[3,6,9].forEach(n=>{have+=Math.min(t.filter(x=>x===`${n}${s}`).length,2);});});
+      have+=Math.min(jokers(t),2); return {have:Math.min(have,need),need};
+    }
+  },
+];
+
+// ── Scoring ─────────────────────────────────────────────────────────────────
+function scoreAll() {
+  const t = tiles();
+  return HANDS.map(h => {
+    const {have,need} = h.eval(t);
+    const pct = need===0 ? 0 : Math.round(have/need*100);
+    return {h, have, need, pct, missing: Math.max(0, need-have)};
+  }).sort((a,b)=>b.pct-a.pct).slice(0,5);
+}
+
+// ── Mode ─────────────────────────────────────────────────────────────────────
+function setMode(m) {
+  currentMode = m;
+  document.getElementById("btn-easy").className = m==="easy" ? "active-easy" : "";
+  document.getElementById("btn-hard").className = m==="hard" ? "active-hard" : "";
+  const banner = document.getElementById("mode-banner");
+  if (m==="easy") {
+    banner.className = "";
+    banner.textContent = "🟢 Easy Mode — Full hand layout, plain-English tips, and tile-by-tile guidance.";
+  } else {
+    banner.className = "hard";
+    banner.textContent = "🔴 Hard Mode — Card section and pattern clue only. Use your physical card to find the exact hand!";
+  }
+  renderRecs();
+}
+
+// ── Tile Picker Rendering ────────────────────────────────────────────────────
+function buildPicker() {
+  // Suited tiles
+  [["B","BAM","tiles-bam"],["C","CRAK","tiles-crak"],["D","DOT","tiles-dot"]].forEach(([suit,label,id])=>{
+    const div = document.getElementById(id);
+    div.innerHTML = `<div class="picker-section-label" style="color:${SUIT_COLORS[suit]}">● ${label}</div><div class="tile-row" id="row-${suit}"></div>`;
+    const row = div.querySelector(`#row-${suit}`);
+    for(let n=1;n<=9;n++){
+      const tile=`${n}${suit}`;
+      row.appendChild(makeTileEl(tile, `<span class="tile-num">${n}</span><span class="tile-suit">${SUIT_LABELS[suit]}</span>`, SUIT_COLORS[suit]));
+    }
+  });
+  // Honors
+  const honorDiv = document.getElementById("tiles-honors");
+  honorDiv.innerHTML = `<div class="picker-section-label" style="color:#555">● HONORS</div><div class="tile-row" id="row-honors"></div>`;
+  const honorRow = document.getElementById("row-honors");
+  HONORS.forEach(h=>{
+    honorRow.appendChild(makeTileEl(h, `<span class="tile-honor">${HONOR_DISPLAY[h]}</span>`, HONOR_COLORS[h]));
+  });
+}
+
+function makeTileEl(tile, innerHtml, color) {
+  const wrap = document.createElement("div");
+  wrap.className = "tile-wrap";
+  wrap.id = `wrap-${tile}`;
+
+  const el = document.createElement("div");
+  el.className = "tile";
+  el.id = `tile-${tile}`;
+  el.innerHTML = innerHtml;
+  el.style.borderColor = color;
+  el.onclick = () => addTile(tile);
+
+  const counter = document.createElement("div");
+  counter.className = "tile-counter";
+  counter.id = `counter-${tile}`;
+  counter.style.display = "none";
+  counter.innerHTML = `<button class="minus" onclick="removeTile('${tile}')">−</button><span class="count" id="cnt-${tile}">0</span><button class="plus" onclick="addTile('${tile}')">+</button>`;
+
+  wrap.appendChild(el);
+  wrap.appendChild(counter);
+  return wrap;
+}
+
+function updateTileEl(tile) {
+  const count = hand[tile] || 0;
+  const el = document.getElementById(`tile-${tile}`);
+  const counter = document.getElementById(`counter-${tile}`);
+  const cnt = document.getElementById(`cnt-${tile}`);
+  if (!el) return;
+
+  const suit = HONORS.includes(tile) ? null : tile.slice(-1);
+  const color = suit ? SUIT_COLORS[suit] : HONOR_COLORS[tile];
+
+  if (count > 0) {
+    el.classList.add("selected");
+    el.style.background = color;
+    el.style.color = "#fff";
+    el.style.boxShadow = `0 2px 8px ${color}55`;
+    counter.style.display = "flex";
+    cnt.textContent = count;
+  } else {
+    el.classList.remove("selected");
+    el.style.background = "#f5f0e8";
+    el.style.color = color;
+    el.style.boxShadow = "0 1px 3px rgba(0,0,0,0.13)";
+    counter.style.display = "none";
+  }
+}
+
+// ── Hand ops ─────────────────────────────────────────────────────────────────
+function addTile(tile) {
+  if (total() >= 16) return;
+  hand[tile] = (hand[tile]||0) + 1;
+  updateTileEl(tile);
+  render();
+}
+function removeTile(tile) {
+  if (!hand[tile]) return;
+  hand[tile]--;
+  if (hand[tile]===0) delete hand[tile];
+  updateTileEl(tile);
+  render();
+}
+function clearHand() {
+  const old = {...hand};
+  hand = {};
+  Object.keys(old).forEach(t=>updateTileEl(t));
+  render();
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  const t = total();
+
+  // Count badge
+  const countEl = document.getElementById("count-display");
+  countEl.textContent = t;
+  countEl.className = "num" + (t>13?" warn":"");
+
+  // Hand summary
+  const summaryEl = document.getElementById("hand-summary");
+  if (t > 0) {
+    summaryEl.style.display = "block";
+    const chips = document.getElementById("hand-chips");
+    chips.innerHTML = Object.entries(hand).sort().map(([tile,c])=>`<span class="hand-chip">${tile}×${c}</span>`).join("");
+  } else {
+    summaryEl.style.display = "none";
+  }
+
+  renderRecs();
+}
+
+function renderRecs() {
+  const t = total();
+  const empty = document.getElementById("empty-state");
+  const cardsEl = document.getElementById("hand-cards");
+  const footerNote = document.getElementById("footer-note");
+
+  if (t === 0) {
+    empty.style.display = "block";
+    cardsEl.innerHTML = "";
+    footerNote.style.display = "none";
+    return;
+  }
+
+  empty.style.display = "none";
+  footerNote.style.display = "block";
+
+  const scored = scoreAll();
+  cardsEl.innerHTML = scored.map(({h,pct,have,need,missing},idx)=>{
+    const sc = SECTION_COLORS[h.section]||"#555";
+    const pctClass = pct>=70?"green":pct>=45?"amber":"gray";
+    const detailHtml = currentMode==="easy"
+      ? `<div class="full-hand">${h.fullHand}</div><div class="easy-tip">💡 ${h.easyTip}</div>`
+      : `<div class="hard-hint">🔍 ${h.hardHint}</div>`;
+    return `
+      <div class="hand-card" style="border-color:${sc}33;border-left-color:${sc};${idx===0?`box-shadow:0 2px 10px ${sc}22`:""}">
+        <div class="hand-card-top">
+          <div class="hand-card-left">
+            <span class="medal">${MEDALS[idx]}</span>
+            <span class="section-badge" style="color:${sc};background:${sc}18">${h.section}</span>
+          </div>
+          <span class="pct ${pctClass}">${pct}%</span>
+        </div>
+        <div class="hand-name">${h.name}</div>
+        ${detailHtml}
+        <div class="score-bar-wrap"><div class="score-bar ${pctClass}" style="width:${pct}%"></div></div>
+        <div class="hand-stats">
+          <span>✅ ${have} tiles match</span>
+          <span>🎯 Need ${need}</span>
+          ${missing>0?`<span class="warn">⚠️ ${missing} missing</span>`:""}
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+buildPicker();
+render();
+</script>
+</body>
+</html>
